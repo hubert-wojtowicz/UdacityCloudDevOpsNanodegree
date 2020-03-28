@@ -1,58 +1,66 @@
 Description: >
-  Hubert Wójowicz / Cloud DevOps Engineer Nanodegree  This is program project 2 - Udagram / Infrastructure definition
-
+  Hubert Wójowicz - Udacity Cloud DevOps Engineer Nanodegree Program
+  Project 2: Udagram - Server part definition
 
 Parameters:
   EnvironmentName:
-    Description: An enviroment name that wil be prefix for resources
+    Description: An environment name that will be prefix for resources
     Type: String
-
+    
 Resources:
   LoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow http to our load balancer
+      GroupDescription: Incomming/outgoing traffic rules for Application Load Balancer
       VpcId:
-        Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
+        Fn::ImportValue: !Sub ${EnvironmentName}-VPCID
       SecurityGroupIngress:
-        - IpProtocol: tcp
+        - Description: Allow all incoming HTTP traffic on port 80
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
-        - IpProtocol: tcp
+        - Description: Allow all outgoing HTTP traffic on port 80
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Load-Balancer-Security-Group
 
-  WebServerSecurityGroup:
+  ServerInstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow http to our hosts and ssh from local only
+      GroupDescription: Incomming/outgoing traffic rules for EC2 instance
       VpcId:
-        Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
+        Fn::ImportValue: !Sub ${EnvironmentName}-VPCID
       SecurityGroupIngress:
-        # allow incoming web http traffic
-        - IpProtocol: tcp
+        - Description: Allow all incoming HTTP port 80 traffic
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
-        # allow incoming ssh connections to machine
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-      # allow server software paches request
+        # - Description: allow incoming ssh connections to machine - development only
+        #   IpProtocol: tcp
+        #   FromPort: 22
+        #   ToPort: 22
+        #   CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
-        - IpProtocol: tcp
+        - Description: Allow all traffic initiated on EC2 to download security updates
+          IpProtocol: tcp
           FromPort: 0
           ToPort: 65535
           CidrIp: 0.0.0.0/0
-
-  UdagramRole:
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-EC2-Security-Group
+          
+  EC2UdacityS3ReadOnlyRole:
     Type: AWS::IAM::Role
     Properties:
-      Description: Thiso role was created to allow deploy website files from provided s3 bucket when instances scale out
+      Description: This role allow EC2 to access s3 public bucket to copy website files
       RoleName: UdacityS3ReadOnlyEC2Role
       AssumeRolePolicyDocument:
         Version: 2012-10-17
@@ -62,26 +70,29 @@ Resources:
               Service:
                 - ec2.amazonaws.com
             Action:
-              - "sts:AssumeRole"
+              - sts:AssumeRole
       Policies:
         - PolicyName: UdacityS3ReadOnlyEC2Policy
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Effect: Allow
-                Action: "s3:ListBucket"
+                Action: s3:ListBucket
                 Resource: "arn:aws:s3:::udacity-demo-1/*"
               - Effect: Allow
-                Action: "s3:GetObject"
+                Action: s3:GetObject
                 Resource: "arn:aws:s3:::udacity-demo-1/udacity.zip"
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-EC2-Role
 
   UdacityS3ReadOnlyECInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - UdacityS3ReadOnlyEC2Role
+        - EC2UdacityS3ReadOnlyRole
 
-  WebAppLaunchConfig:
+  ServerInstancesLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       UserData:
@@ -96,13 +107,77 @@ Resources:
           sudo unzip -o udacity.zip
       ImageId: ami-03ba3948f6c37a4b0 # Ubuntu Server 18.04 LTS (HVM), SSD Volume Type
       IamInstanceProfile: !Ref UdacityS3ReadOnlyECInstanceProfile
-      KeyName: UdagramMachines
-      # Connect SSH with: ssh #ssh -i <SSH_URL> ubuntu@ec2-<IP>.<REGION_ID>.compute.amazonaws.com
-      # example: ssh -i "test-project-2.pem" ubuntu@ec2-18-221-76-145.us-east-2.compute.amazonaws.com
-      SecurityGroups:
-        - Ref: WebServerSecurityGroup
+      #KeyName: UdagramMachines # development only - allow to access EC2 with public IP via SSH
+      SecurityGroups: !Ref ServerInstanceSecurityGroup
       InstanceType: t3.medium # CPU cores 2/RAM-4GB/storage-EBS only/network performance-Low to Moderate
       BlockDeviceMappings:
         - DeviceName: "/dev/sdk"
           Ebs:
             VolumeSize: "10"
+
+  ServerInstancesAutoscalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PRIV-NETS
+      LaunchConfigurationName: !Ref ServerInstancesLaunchConfig
+      MinSize: "4"
+      MaxSize: "10"
+      TargetGroupARNs: !Ref ServerInstancesTargetGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-AutoScalingGroup
+
+  ServerInstancesLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PUB1-SN
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PUB2-SN
+      SecurityGroups:
+        - Ref: LoadBalancerSecurityGroup
+
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ServerInstancesTargetGroup
+      LoadBalancerArn: !Ref ServerInstancesLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  ServerInstancesListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref ServerInstancesTargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values: [/]
+      ListenerArn: !Ref LoadBalancerListener
+      Priority: 1
+
+  ServerInstancesTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 8
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 5
+      VpcId:
+        Fn::ImportValue:
+          Fn::Sub: ${EnvironmentName}-VPCID
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-LoadBalancer-TargetGroup
+
+Outputs: 
+  WebAppLbDns:
+    Description: Website access address
+    Value: !Join ["",["http://", !GetAtt ServerInstancesLoadBalancer.DNSName]]
