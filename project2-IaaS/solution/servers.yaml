@@ -48,3 +48,61 @@ Resources:
           FromPort: 0
           ToPort: 65535
           CidrIp: 0.0.0.0/0
+
+  UdagramRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Thiso role was created to allow deploy website files from provided s3 bucket when instances scale out
+      RoleName: UdacityS3ReadOnlyEC2Role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: UdacityS3ReadOnlyEC2Policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: "s3:ListBucket"
+                Resource: "arn:aws:s3:::udacity-demo-1/*"
+              - Effect: Allow
+                Action: "s3:GetObject"
+                Resource: "arn:aws:s3:::udacity-demo-1/udacity.zip"
+
+  UdacityS3ReadOnlyECInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - UdacityS3ReadOnlyEC2Role
+
+  WebAppLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo apt-get update -y
+          sudo apt-get install unzip awscli -y
+          sudo apt-get install apache2 -y
+          sudo systemctl start apache2.service
+          cd /var/www/html
+          sudo aws s3 cp s3://udacity-demo-1/udacity.zip .
+          sudo unzip -o udacity.zip
+      ImageId: ami-03ba3948f6c37a4b0 # Ubuntu Server 18.04 LTS (HVM), SSD Volume Type
+      IamInstanceProfile: !Ref UdacityS3ReadOnlyECInstanceProfile
+      KeyName: UdagramMachines
+      # Connect SSH with: ssh #ssh -i <SSH_URL> ubuntu@ec2-<IP>.<REGION_ID>.compute.amazonaws.com
+      # example: ssh -i "test-project-2.pem" ubuntu@ec2-18-221-76-145.us-east-2.compute.amazonaws.com
+      SecurityGroups:
+        - Ref: WebServerSecurityGroup
+      InstanceType: t3.medium # CPU cores 2/RAM-4GB/storage-EBS only/network performance-Low to Moderate
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sdk"
+          Ebs:
+            VolumeSize: "10"
