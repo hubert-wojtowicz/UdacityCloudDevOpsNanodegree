@@ -109,7 +109,7 @@ Resources:
       ImageId: ami-03ba3948f6c37a4b0 # Ubuntu Server 18.04 LTS (HVM), SSD Volume Type
       IamInstanceProfile: !Ref UdacityS3ReadOnlyECInstanceProfile
       #KeyName: UdagramMachines # development only - allow to access EC2 with public IP via SSH
-      SecurityGroups: [!Ref ServerInstanceSecurityGroup]
+      SecurityGroups:  [!Ref ServerInstanceSecurityGroup]
       InstanceType: t3.medium # CPU cores 2/RAM-4GB/storage-EBS only/network performance-Low to Moderate
       BlockDeviceMappings:
         - DeviceName: "/dev/sdk"
@@ -128,6 +128,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}-AutoScalingGroup
+          PropagateAtLaunch: true
 
   ServerInstancesLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
