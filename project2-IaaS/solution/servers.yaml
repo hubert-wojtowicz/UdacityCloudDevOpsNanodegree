@@ -124,7 +124,7 @@ Resources:
       LaunchConfigurationName: !Ref ServerInstancesLaunchConfig
       MinSize: "4"
       MaxSize: "10"
-      TargetGroupARNs: !Ref ServerInstancesTargetGroup
+      TargetGroupARNs: [!Ref ServerInstancesTargetGroup]
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}-AutoScalingGroup
@@ -182,4 +182,4 @@ Resources:
 Outputs: 
   WebAppLbDns:
     Description: Website access address
-    Value: !Join ["",["http://", !GetAtt ServerInstancesLoadBalancer.DNSName]]
+    Value: !Join ["", ["http://", !GetAtt ServerInstancesLoadBalancer.DNSName]]
