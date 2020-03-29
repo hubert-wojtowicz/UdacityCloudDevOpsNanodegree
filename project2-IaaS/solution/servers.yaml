@@ -15,13 +15,13 @@ Resources:
       VpcId:
         Fn::ImportValue: !Sub ${EnvironmentName}-VPCID
       SecurityGroupIngress:
-        - Description: Allow all incoming HTTP traffic on port 80
+        - Description: Allow all incoming HTTP traffic on port 80 from application clients
           IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
-        - Description: Allow all outgoing HTTP traffic on port 80
+        - Description: Allow all outgoing HTTP traffic on port 80 to reach servers instances
           IpProtocol: tcp
           FromPort: 80
           ToPort: 80

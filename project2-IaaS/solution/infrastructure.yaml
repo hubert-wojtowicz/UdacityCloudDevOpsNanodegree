@@ -1,6 +1,6 @@
 Description: >
-  Hubert Wójowicz / Cloud DevOps Engineer Nanodegree  This is program project 2 - Udagram / Infrastructure definition
-
+  Hubert Wójowicz - Udacity Cloud DevOps Engineer Nanodegree Program
+  Project 2: Udagram - Infrastructure definition
 
 Parameters:
   EnvironmentName:
@@ -99,17 +99,15 @@ Resources:
         - Key: Name
           Value: !Sub ${EnvironmentName} Private Subnet (AZ2)
 
-  # Do I need this - allocated IP ???
   NatGatewat1EIP:
     Type: AWS::EC2::EIP
-    DependsOn: InternetGatewayAttachment # it wil wait for resource InternetGatewayAttachment
+    DependsOn: InternetGatewayAttachment
     Properties:
       Domain: vpc
 
-  # Do I need this - allocated IP ???
   NatGatewat2EIP:
     Type: AWS::EC2::EIP
-    DependsOn: InternetGatewayAttachment # it wil wait for resource InternetGatewayAttachment
+    DependsOn: InternetGatewayAttachment
     Properties:
       Domain: vpc
 
@@ -125,7 +123,6 @@ Resources:
       AllocationId: !GetAtt NatGatewat2EIP.AllocationId
       SubnetId: !Ref PublicSubnet2
 
-  ##### PUBLIC ROUTING
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -134,7 +131,6 @@ Resources:
         - Key: Name
           Value: !Sub ${EnvironmentName} Public Routes
 
-  # Route all traffic to gateway (if there are not more specific)
   DefaultPublicRoute:
     Type: AWS::EC2::Route
     DependsOn: InternetGatewayAttachment
@@ -144,7 +140,7 @@ Resources:
       GatewayId: !Ref InternetGateway
 
   PublicSubnet1RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation #read about
+    Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet1
@@ -155,7 +151,6 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet2
 
-  ##### PRIVATE ROUTING
   PrivateRouteTable1:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -164,7 +159,6 @@ Resources:
         - Key: Name
           Value: !Sub ${EnvironmentName} Private Routes (AZ1)
 
-  # Route traffic from private subnets to NAT
   DefaultPrivateRoute1:
     Type: AWS::EC2::Route
     Properties:
