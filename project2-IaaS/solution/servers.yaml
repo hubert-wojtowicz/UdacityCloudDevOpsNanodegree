@@ -61,7 +61,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       Description: This role allow EC2 to access s3 public bucket to copy website files
-      RoleName: UdacityS3ReadOnlyEC2Role
+      RoleName: EC2UdacityS3ReadOnlyRole
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -88,6 +88,7 @@ Resources:
 
   UdacityS3ReadOnlyECInstanceProfile:
     Type: AWS::IAM::InstanceProfile
+    DependsOn: EC2UdacityS3ReadOnlyRole
     Properties:
       Roles:
         - EC2UdacityS3ReadOnlyRole
