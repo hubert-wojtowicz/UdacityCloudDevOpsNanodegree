@@ -6,7 +6,7 @@ This folder contains solution for Cloud DevOps Nanodegree - Project 2 - Deploy a
 
 AWC cloud infrastructure diagram can be found [here](https://www.lucidchart.com/invitations/accept/880d17f2-7f6c-495d-87d8-842692a9c8c7)
 
-![](diagram.jpg)
+![](diagram.jpeg)
 
 # Content
 
@@ -15,3 +15,4 @@ AWC cloud infrastructure diagram can be found [here](https://www.lucidchart.com/
 - infrastructure-params.json - input parameters to above YAML file
 - servers.yaml - definition of servers EC2,
 - servers-params.json - input parameters for servers
+- diagram.jpeg 
