@@ -1,0 +1,1 @@
+[Link to repo with jenkinsfile and html site](https://github.com/hubert-wojtowicz/static)
